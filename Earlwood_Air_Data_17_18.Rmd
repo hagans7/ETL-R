@@ -1,0 +1,183 @@
+---
+title: "Earlwood"
+author: "Hagan"
+date: "12/1/2021"
+output: word_document
+---
+```{r}
+library(dplyr)
+library(openxlsx)
+library(readxl)
+Earlwood = read_xls("D:/Hagan/PENS/Project/R/Post Test/Earlwood_Air_Data_17_18.xls")
+View(Earlwood)
+str(Earlwood)
+```
+
+
+```{r}
+data_types <- function(frame) {
+  res <- lapply(frame, class)
+  res_frame <- data.frame(unlist(res))
+  barplot(table(res_frame), main="Data Types in Earlwood", col="steelblue", ylab="Number of Features")
+}
+data_types(Earlwood)
+```
+(Humid) kelembaban
+(SD) strom dati
+(PM) partikulat,  PM10 = 150 µgram/m, NAB PM2.5 = 65 µgram/m3
+(NO2) nitrogen oksida
+(NO) nitrogen monoksida
+(wsp) weather system processor
+(wdr)wind direction degree
+
+```{r}
+Earlwood %>% filter(Time == c("06:00"),`EARLWOOD TEMP 1h average [°C]`>= 23) %>% head()
+```
+```{r}
+Earlwood %>% filter(Time == c("20:00"),`EARLWOOD TEMP 1h average [°C]`>= 28)%>% head()
+```
+
+```{r}
+Earlwood %>% filter(`EARLWOOD WDR 1h average [°]`>= 100 )%>% head()
+```
+nitrogen oksida
+```{r}
+arrange(Earlwood, desc("EARLWOOD OZONE 1h average [pphm]") )%>% head()
+```
+
+
+
+```{r}
+sum(is.na(Earlwood))/(nrow(Earlwood)*ncol(Earlwood))
+```
+
+```{r}
+nacols <- function(df) {
+    colnames(df)[unlist(lapply(Earlwood, function(x) anyNA(x)))]
+}
+cat('There are',length(nacols(df)),'columns with NA values.50% of columns are NA filled which disturbs the data quality') 
+```
+
+```{r}
+missing_data <- as.data.frame(sort(sapply(Earlwood, function(x) sum(is.na(x))),decreasing = T))                                                   
+colnames(missing_data)[1] <- "Missing_values"
+missing_data$Percentage <- (missing_data$Missing_values/nrow(data))*100      
+missing_data$Variables <- rownames(missing_data)
+missing_data <- missing_data[c(3,1,2)] 
+rownames(missing_data)<-c()                                        
+head(missing_data,15)
+```
+
+```{r}
+library(DataExplorer)
+introduce(Earlwood)
+```
+
+```{r}
+plot_histogram(Earlwood)
+```
+
+```{r}
+plot_missing(Earlwood)
+```
+
+```{r}
+summary(Earlwood)
+```
+
+```{r}
+most_na_columns_Earlwood<-missing_data$Variables[1:50]
+most_na_columns_Earlwood
+```
+
+Mengatasi mising value dengan mengganti dengan nilai rata-rata yang mana untuk tipe data numerik
+```{r}
+rawEarlwood = Earlwood
+for(i in 3:ncol(rawEarlwood)) {
+  rawEarlwood[is.na(rawEarlwood[,i]), i] <-  mean(rawEarlwood[,i], na.rm = TRUE)
+}
+rawEarlwood
+
+```
+
+terdapat warning messsage dikarenakan jika terdapat data kosong pada tipe data selain numerik maka akan dikembalikkan kembali dalam bentuk NA
+
+
+mengatasi data yang kosong dengan menghapus nilai data yang terdapat NA
+```{r}
+rawEarlwood3 = rawEarlwood
+rawEarlwood3 <- na.omit(rawEarlwood)
+
+rawEarlwood3 %>% head()
+
+```
+
+```{r}
+
+labelsEarlwood= c("EARLWOOD WDR 1h average [°]","EARLWOOD TEMP 1h average [°C]","EARLWOOD WSP 1h average [m/s]", "EARLWOOD WSP 1h average [m/s]","EARLWOOD NO 1h average [pphm]", "EARLWOOD NO2 1h average [pphm]", "EARLWOOD NO2 1h average [pphm]", "EARLWOOD OZONE 1h average [pphm]","EARLWOOD OZONE 4h rolling average [pphm]", "EARLWOOD PM10 1h average [µg/m³]","EARLWOOD PM2.5 1h average [µg/m³]","EARLWOOD HUMID 1h average [%]","EARLWOOD SD1 1h average [°]")
+Earlwoodupdate = rawEarlwood3 %>%
+  select(labelsEarlwood)
+Earlwoodupdate %>% head()
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readr)
+
+```
+
+normalisasi data atribut agar menjadi range dari 0 hingga 1 
+```{r}
+normalize <- function(x) {
+  return((x - min(x)) / (max(x) - min(x)))
+}
+Earlwoodupdate %>% head()
+write.xlsx(Earlwoodupdate,"D:/Hagan/PENS/Project/R/Post Test/Earlwood update.xlsx")
+```
+
+```{r}
+Earlwoodupdate <- read.xlsx("D:/Hagan/PENS/Project/R/Post Test/Earlwood update.xlsx")
+Earlwoodupdate %>% head()
+```
+
+```{r}
+
+Earlwoodupdate$`EARLWOOD.WDR.1h.average.[°]` <- normalize(Earlwoodupdate$`EARLWOOD.WDR.1h.average.[°]`)
+
+Earlwoodupdate$`EARLWOOD.TEMP.1h.average.[°C]` <- normalize(Earlwoodupdate$`EARLWOOD.TEMP.1h.average.[°C]`)
+
+Earlwoodupdate$`EARLWOOD.WSP.1h.average.[m/s]` <- normalize(Earlwoodupdate$`EARLWOOD.WSP.1h.average.[m/s]`)
+
+Earlwoodupdate$`EARLWOOD.NO.1h.average.[pphm]` <- normalize(Earlwoodupdate$`EARLWOOD.NO.1h.average.[pphm]`)
+
+Earlwoodupdate$`EARLWOOD.NO2.1h.average.[pphm]` <- normalize(Earlwoodupdate$`EARLWOOD.NO2.1h.average.[pphm]`)
+
+Earlwoodupdate$`EARLWOOD.OZONE.4h.rolling.average.[pphm]` <- normalize(Earlwoodupdate$`EARLWOOD.OZONE.4h.rolling.average.[pphm]`)
+
+Earlwoodupdate$`EARLWOOD.PM10.1h.average.[µg/m³]` <- normalize(Earlwoodupdate$`EARLWOOD.PM10.1h.average.[µg/m³]`)
+
+Earlwoodupdate$`EARLWOOD.PM2.5.1h.average.[µg/m³]` <- normalize(Earlwoodupdate$`EARLWOOD.PM2.5.1h.average.[µg/m³]`)
+
+Earlwoodupdate$`EARLWOOD.HUMID.1h.average.[%]` <- normalize(Earlwoodupdate$`EARLWOOD.HUMID.1h.average.[%]`)
+
+Earlwoodupdate$`EARLWOOD.SD1.1h.average.[°]` <- normalize(Earlwoodupdate$`EARLWOOD.SD1.1h.average.[°]`)
+
+Earlwoodupdate$`EARLWOOD.OZONE.1h.average.[pphm]`<- normalize(Earlwoodupdate$`EARLWOOD.OZONE.1h.average.[pphm]`)
+
+```
+
+
+
+```{r}
+Earlwoodupdate %>% head
+```
+
+
+
+```{r}
+#write.csv(Earlwoodupdate,"D:/Hagan/PENS/Project/R/Post Test/ Earlwood normalize.csv")
+```
+
+
+

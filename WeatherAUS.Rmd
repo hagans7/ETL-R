@@ -1,0 +1,223 @@
+---
+title: "WeatherAUS"
+output: html_notebook
+---
+
+```{r}
+data = read.csv("D:/Hagan/PENS/Project/R/Post Test/weatherAUS.csv", header = TRUE)
+#melihat data
+View(data)
+library(dplyr)
+
+```
+
+Pada ETL ini menggunakan data cuaca di australia yang mana sumber data didapatkan dari kaggle dan tipe data csv, menggunakan syntax read.csv untuk membaca data tersebut lalu menampilkan data tersebut dengan view agar nantinya kita dapat menampilkan data di dalam R Studio
+```{r}
+data_types <- function(frame) {
+  res <- lapply(frame, class)
+  res_frame <- data.frame(unlist(res))
+  barplot(table(res_frame), main="Data Types in Weather on AUS data", col="steelblue", ylab="Number of Features")
+}
+data_types(data)
+```
+dengan syntax data_type kita bisa melihat struktur data dan persebaran data pada data cuaca di australia menggunakan tipe data apa aja terlihat terdapat 3 tipe data yang ada yaitu karakter dengan jumlah tujuh data, integer dengan tujuh data, dan numerik dengan sembilan data yang nantinya untuk menjadi gambaran pengolahan data nya seperti apa  
+```{r}
+str(data)
+```
+disini kita bisa melihat struktur data dan juga persebaran data dengan gambaran spesifik nama data tersebut dengan tipe data yang ada dan juga sedikit isi data yang diperlihatkan 
+
+
+
+menampilkan data dengan RainToday == yes
+```{r}
+data %>% filter( RainToday == "Yes" )
+```
+menampilkan data dengan RainToday == NO
+```{r}
+data %>% filter( RainToday == "No" )
+```
+
+
+menampilkan data dengan Raintoday = yes , Humadity <=  18 dengan WindGustSpeed <= 40
+```{r}
+data %>% filter(Humidity3pm <= 18, RainToday == "Yes", WindGustSpeed <= 40 )
+```
+```{r}
+data %>% filter(Humidity3pm <= 18, RainToday == "No", WindGustSpeed <= 40 )
+```
+
+
+```{r}
+arrange(data,Humidity3pm, Sunshine, RainToday)
+```
+
+
+```{r}
+arrange(data,desc(Humidity3pm), Sunshine, RainToday,Pressure3pm)
+```
+
+```{r}
+data %>% filter( WindDir9am == "N")
+```
+```{r}
+data %>% filter( WindDir3pm == "N")
+```
+
+
+```{r}
+
+nacols <- function(df) {
+    colnames(df)[unlist(lapply(data, function(x) anyNA(x)))]
+}
+cat('There are',length(nacols(df)),'columns with NA values.50% of columns are NA filled which disturbs the data quality') 
+```
+
+disini kita bisa lihat bahwa tidak terdapat data kosong yang lebih dari 50% yang mana sangat baik untuk diolah 
+
+
+```{r}
+sum(is.na(data))/(nrow(data)*ncol(data)) 
+```
+teradpat 10% NA value dari keseluruhan data yang ada
+
+
+```{r}
+missing_data <- as.data.frame(sort(sapply(data, function(x) sum(is.na(x))),decreasing = T))                                                   
+colnames(missing_data)[1] <- "Missing_values"
+missing_data$Percentage <- (missing_data$Missing_values/nrow(data))*100      
+missing_data$Variables <- rownames(missing_data)
+missing_data <- missing_data[c(3,1,2)] 
+rownames(missing_data)<-c()                                        
+head(missing_data,15)
+```
+
+disini kita bisa melihat persentasi datang yang hilang dari tiap parameter atau dari tiap kolom yang ada dengan NA value tertinggi pada variabel Sunshine dengan Missing Value 69835 data persentase 48% dan yang kedua Evaporation dengan mising value 62790 dengan persentase 43% 
+```{r}
+library(DataExplorer)
+introduce(data)
+```
+dengan library dataExplorer kita bisa mengetahui data yang kita seperti apa dengan total baris sebanyak 145460 baris, 23 kolom, variabel dalam bentuk karakter sebanyak tujuh variabel, variabel numerik sebanyak enam belas variabel, kolom yang semua data kosong sebanyak nol data, data yang hilang sebanyak 343248 data, baris yang terisi penuh sebanyak 56420 baris, dengan total observasi 3345590 data
+```{r}
+plot_histogram(data)
+```
+persebaran data pada data cuaca australia bisa terlihat pada gambar grafik 
+```{r}
+plot_missing(data)
+```
+disini kita mengetahui baris yang kosong pada data dengan grafik yang mana terdapat tiga keterangan Band, Good, dana OK  yang mana masih cenderung aman untuk diolah
+
+```{r}
+summary(data)
+```
+kita bisa melihat summary dari tiap variabel data yang ada yang nantinya akan menjadi patokan untuk mengolah data 
+
+```{r}
+most_na_columns<-missing_data$Variables[1:50]
+most_na_columns
+```
+dengan syntax ini kita bisa melihat urutan data yang hilang dengan deskripsi
+
+
+
+
+Mengatasi mising value dengan mengganti dengan nilai rata-rata yang mana untuk tipe data numerik
+```{r}
+rawdata = data
+for(i in 1:ncol(rawdata)) {
+  rawdata[is.na(rawdata[,i]), i] <-  mean(rawdata[,i], na.rm = TRUE)
+}
+View(rawdata)
+
+```
+pada kasus ini saya mengganti nilai nilai yang kosong dengan rata0rata data untuk data numerik, dikarenakan rata-rata sangat cocok untuk data numerik, dan untuk data kosong pada tipe data karakter akan tetap dibiarkan menjadi NA Value 
+terdapat warning messsage dikarenakan jika terdapat data kosong pada tipe data selain numerik maka akan dikembalikkan kembali dalam bentuk NA 
+
+
+mengatasi data yang kosong dengan menghapus nilai data yang terdapat NA
+```{r}
+rawdata3 = rawdata
+rawdata3 <- na.omit(rawdata)
+
+View(rawdata3)
+```
+data yang masih kosong atau data karakter yang kosong yang mana akan dihapus karena untuk mengurangi kesalahan dalam pengolahan data nantinya 
+
+
+
+pada data ini disiapkan yang mana akan diambil variabel yang terbaik untuk nantinya bisa menjadi data diolah 
+
+```{r}
+
+library(dplyr)
+#create decision tree c5.0 tree based model
+rawdata3 = rawdata3 %>%
+  mutate(across(where(is.character), as.factor))
+str(rawdata3)
+```
+disini variabel karakter diubah menjadi tipe data faktor 
+
+
+
+
+
+
+```{r}
+predictor <- RainTomorrow~MinTemp+MaxTemp+Rainfall+Evaporation+Sunshine+WindGustSpeed+WindDir3pm+WindDir9am+WindSpeed3pm+WindSpeed9am+Humidity3pm+Pressure3pm+Cloud9am+Cloud3pm+Temp3pm+Temp9am+RainToday
+
+```
+membuat variabel predictor yang mana isinya terdapat variabel-variabel pada data cuaca di australia ,data raintomrrorw mejadi kelas  
+
+
+```{r}
+set.seed(1234)
+#apply fold validation
+fold <- cut(seq(1, nrow(rawdata3)), breaks = 10, labels=FALSE)
+for(i in 1:10){
+  testindexes <- which(fold==i, arr.ind = TRUE)
+  testdata <- rawdata3[testindexes,] 
+  traindata <- rawdata3[-testindexes, ]}
+
+```
+menguji data dengan dataset dibagi menjadi 10 bagian, setiap bagian akan diuji ke 
+seluruhan model lalu dihitung akurasi yang nantinya akan dijumlahkan dan di cek rata-rata akurasi tersebut, dengan metode ten fold validation akan membuat data lebih baik saat dicek akurasinya dalam pemodelan dibandingkan dengan pemodelan split 80/20 
+
+```{r}
+library(tidyverse)
+library(tidyrules)
+library(C50)
+library(pander)
+library(dplyr)
+```
+
+```{r}
+#create decision tree menggunakan algoritma C5.0
+treec5 <- C5.0(predictor, data=traindata)
+treec5
+summary(treec5)
+```
+
+
+pada output kali ini akan menghasilkan atribut-atribut yang penting dari total keseluruhan data, bisa kita lihat bahwa 
+atribut yang paling penting ddalam data ini yaitu atribut humidity3pm dengan persentase 100% atau bisa dibilang tingkat pengaruh data humadity3pm dengan data lainnya berpengaruh 100%, attribut yang kedua yaitu atribut sunshime dengan persentase 90,19% atau bisa dibilang tingkat pengaruh data sunshine dengan data lainnya berpengaruh 90,19%, dan data ketiga yaitu Raintoday dengan persentase sebesar 66,22% atau bisa dibilang data Raintoday tingkat pengaruh dengan data lainnya berpengaruh 66,22%, data dengan tingkat pengaruh terrendah yaitu data Maxtemp dengan persentase 1.90% atau data Maxtemp hanya memiliki pengaruh dengan data lainnya sebesar 1.90%
+terlihat data yang keluar akan mengurut dari yang terbesar pengaruhnya ke data lainnya yaitu data Humadity3pm hingga data yang sedikit pengaruhnya dengan data lainnya yang paling bawah yaitu Atribut Maxtemp, dari data ini saya akan mengambil 10 data yang memiliki pengaruh tinggi yang mana dari 10 data ini akan memudahkan pengolahan data nantinya
+
+
+```{r}
+library(dplyr)
+labelsWeather= c("Humidity3pm","Sunshine","WindGustSpeed", "RainToday","Pressure3pm", "Rainfall", "WindDir9am", "WindDir3pm")
+weather_new = rawdata3 %>%
+  select(labelsWeather)
+weather_new = weather_new %>%
+  mutate(across(where(is.double), as.integer))
+
+weather_new
+attach(weather_new)
+```
+
+
+menyimpan data yang sudah diolah kedalam CSV
+```{r}
+#write.csv(rawdata3,"D:/Hagan/PENS/Project/R/Post Test/ weather update.csv")
+```
+
+

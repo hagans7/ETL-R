@@ -1,0 +1,166 @@
+---
+title: "crypto_markets"
+author: "Hagan"
+date: "12/2/2021"
+output: word_document
+---
+```{r}
+library(RMySQL)
+library(dplyr)
+library(stringr)
+mysqlconnection = dbConnect(MySQL(), user="root", password="hagan", dbname = "crypto money", host="localhost")
+crypto_markets = dbReadTable(mysqlconnection, "`crypto_markets`")
+crypto_markets %>% head()
+attach(crypto_markets)
+```
+
+Pada ETL ini menggunakan data Crypto market yang mana sumber data didapatkan dari kaggle dan tipe data sql, menggunakan syntax my sql connection  untuk membaca data tersebut menggunakan database yang telah tersimpan di databse lokalserver laptop lalu dibaca menggunakan dbreadtable lalu menampilkan data tersebut dengan view agar nantinya kita dapat menampilkan data di dalam R Studio
+
+```{r}
+
+```
+
+
+merubah tipe data
+```{r}
+
+crypto_markets_update <- transform(crypto_markets,
+                                   Open = as.double(Open),
+                                   High = as.double(High), 
+                                   Ranknow = as.double(Ranknow),
+                                   Low= as.double(Low), 
+                                   Close= as.double(Close), 
+                                   Volume= as.double(Volume),
+                                   Market = as.double(Market),
+                                   Clode_Ratio = as.double(Clode_Ratio),
+                                   Spread= as.double(Spread))
+crypto_markets_update[crypto_markets == 0] <- NA                                  
+crypto_markets_update %>% head()
+
+```
+pada server database data yang seharusnya terbaca sebagai integer tetapi terbaca sebagai data karakter, maka data diubah terlebih dahulu menjadi tipe data double dengan syntax transform agar data bisa kita olah karena berbentuk tipe data double, dan juga saya merubah data "0" menjadi data NA atau data kosong yang mana jikalau data terbentuk data "0" data tidak akan terbaca sebagai missing value 
+
+
+```{r}
+str(crypto_markets_update)
+```
+disini kita bisa melihat struktur data dan juga persebaran data dengan gambaran spesifik nama data tersebut dengan tipe data yang ada dan juga sedikit isi data yang diperlihatkan 
+
+
+```{r}
+data_types <- function(frame) {
+  res <- lapply(frame, class)
+  res_frame <- data.frame(unlist(res))
+  barplot(table(res_frame), main="Data Types in crypto_markets", col="steelblue", ylab="Number of Features")
+}
+data_types(crypto_markets_update)
+```
+
+```{r}
+sum(is.na(crypto_markets_update))/(nrow(crypto_markets_update)*ncol(crypto_markets_update))
+```
+
+```{r}
+nacols <- function(df) {
+    colnames(df)[unlist(lapply(crypto_markets_update, function(x) anyNA(x)))]
+}
+cat('There are',length(nacols(df)),'columns with NA values.50% of columns are NA filled which disturbs the data quality')
+```
+
+
+
+```{r}
+missing_data <- as.data.frame(sort(sapply(crypto_markets_update, function(x) sum(is.na(x))),decreasing = T))                                                   
+colnames(missing_data)[1] <- "Missing_values"
+missing_data$Percentage <- (missing_data$Missing_values/nrow(data))*100      
+missing_data$Variables <- rownames(missing_data)
+missing_data <- missing_data[c(3,1,2)] 
+rownames(missing_data)<-c()                                        
+missing_data %>% head()
+```
+
+
+```{r}
+library(DataExplorer)
+introduce(crypto_markets_update)
+```
+
+
+```{r}
+plot_histogram(crypto_markets_update)
+```
+
+
+```{r}
+plot_missing(crypto_markets_update)
+```
+
+
+```{r}
+summary(crypto_markets_update)
+```
+
+
+```{r}
+most_na_columns_crypto_markets_update<-missing_data$Variables[1:50]
+most_na_columns_crypto_markets_update %>% head()
+```
+Mengatasi mising value dengan mengganti dengan nilai rata-rata yang mana untuk tipe data numerik
+```{r}
+rawcrypto_markets_update = crypto_markets_update
+for(i in 3:ncol(rawcrypto_markets_update)) {
+  rawcrypto_markets_update[is.na(rawcrypto_markets_update[,i]), i] <-  mean(rawcrypto_markets_update[,i], na.rm = TRUE)
+}
+rawcrypto_markets_update %>% head()
+
+```
+
+terdapat warning messsage dikarenakan jika terdapat data kosong pada tipe data selain numerik maka akan dikembalikkan kembali dalam bentuk NA
+
+
+mengatasi data yang kosong dengan menghapus nilai data yang terdapat NA
+
+
+```{r}
+rawcrypto_markets_new = rawcrypto_markets_update
+rawcrypto_markets_new <- na.omit(rawcrypto_markets_update)
+ 
+
+```
+
+
+
+```{r}
+library(dplyr)
+
+labels= c("Asset","Name","Date", "Open","High", "Low", "Close")
+dropcrypto_markets_new = rawcrypto_markets_update %>%
+  select(labels)
+
+```
+
+```{r}
+
+dropcrypto_markets_new$open <- dropcrypto_markets_new[,4]*0.8*15000 
+dropcrypto_markets_new$high <- dropcrypto_markets_new[,5]*0.8*15000
+dropcrypto_markets_new$low <- dropcrypto_markets_new[,6]*0.8*15000
+dropcrypto_markets_new$close <- dropcrypto_markets_new[,7]*0.8*15000
+```
+
+```{r}
+labels= c("Asset","Name","Date", "open","high", "low", "close")
+crypto_markets_new = dropcrypto_markets_new %>%
+  select(labels)
+
+crypto_markets_new <- crypto_markets_new[crypto_markets_new$Asset != "asset", ] %>% head()
+```
+
+
+```{r}
+crypto_markets_new %>% head()
+```
+
+menyimpan data yang sudah diolah kedalam CSV
+```{r}
+#write.csv(crypto_markets_new,"D:/Hagan/PENS/Project/R/Post Test/ crypto_markets_new.csv")
+```
